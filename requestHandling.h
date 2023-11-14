@@ -98,9 +98,12 @@ void handleSendRequest(std::istringstream* stream, int* current_socket)
 
    // helperMethods.h
    // change current working directory to recipient's folder
+   pthread_mutex_lock(&mutex);
    navigateToFolder(receiver.c_str());
+   pthread_mutex_unlock(&mutex);
 
    // check if _index.txt exists
+   pthread_mutex_lock(&mutex); // lock the access to the index file (if two users access at same time two index files might be created)
    std::ifstream indexFile("_index.txt");
    if (!indexFile.is_open())
    {
@@ -122,6 +125,7 @@ void handleSendRequest(std::istringstream* stream, int* current_socket)
       std::cout << "_index.txt already exists." << std::endl;
       indexFile.close();
    }
+   pthread_mutex_unlock(&mutex);
 
    // helperMethods.h
    // creates new mail in recipients folder and sends response to client
@@ -169,7 +173,9 @@ void handleListRequest(std::istringstream* stream, int* current_socket)
       if (entry.is_regular_file() && entry.path().filename() != excludeFile)
       {
          // count each file that isn't "_index.txt"
+         pthread_mutex_lock(&mutex);
          ++fileCounter;
+         pthread_mutex_unlock(&mutex);
 
          // get filename without the .txt
          filename = entry.path().filename();
@@ -191,7 +197,10 @@ void handleListRequest(std::istringstream* stream, int* current_socket)
 
    // add fileCounter at start of string
    // then send list of all subjects back to client
+   pthread_mutex_lock(&mutex);
    listResponse.insert(0, std::to_string(fileCounter) + "\n");
+   pthread_mutex_unlock(&mutex);
+
    if (send(*current_socket, listResponse.c_str(), listResponse.length(), 0) == -1)
    {
       perror("send answer failed");
@@ -294,6 +303,7 @@ void handleDeleteRequest(std::istringstream* stream, int* current_socket)
    std::string filename = messageNumber + ".txt";
    fs::path messageFile = userDirectory / filename;
 
+   pthread_mutex_lock(&mutex);
    if (fs::exists(messageFile) && fs::is_regular_file(messageFile))
    {
       // if so -> delete
@@ -324,4 +334,5 @@ void handleDeleteRequest(std::istringstream* stream, int* current_socket)
          perror("send answer failed");
       }
    }
+   pthread_mutex_unlock(&mutex);
 }

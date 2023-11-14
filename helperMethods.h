@@ -10,11 +10,43 @@
 #include <ldap.h>
 
 namespace fs = std::filesystem;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
 
 /// @brief Checks if folder "folderName" exists: 
 /// yes -> changes cwd;
 /// no -> creates folder, then changes cwd
 /// @param folderName 
+// void navigateToFolder(const char* folderName)
+// {
+//     fs::path directoryPath(folderName);
+// 
+//     if (fs::is_directory(directoryPath))
+//     {
+//         try
+//         {
+//             fs::current_path(directoryPath);
+//             std::cout << "Navigated to existing folder: " << folderName << std::endl;
+//         }
+//         catch (const fs::filesystem_error& ex)
+//         {
+//             std::cerr << "Failed to navigate to folder: " << folderName << ". Error: " << ex.what() << std::endl;
+//         }
+//     }
+//     else
+//     {
+//         try
+//         {
+//             fs::create_directory(directoryPath);
+//             fs::current_path(directoryPath);
+//             std::cout << "Created and navigated to new folder: " << folderName << std::endl;
+//         }
+//         catch (const fs::filesystem_error& ex)
+//         {
+//             std::cerr << "Failed to create or navigate to folder: " << folderName << ". Error: " << ex.what() << std::endl;
+//         }
+//     }
+// }
+
 void navigateToFolder(const char* folderName)
 {
     fs::path directoryPath(folderName);
@@ -36,15 +68,15 @@ void navigateToFolder(const char* folderName)
         try
         {
             fs::create_directory(directoryPath);
-            fs::current_path(directoryPath);
-            std::cout << "Created and navigated to new folder: " << folderName << std::endl;
+            std::cout << "Created folder: " << folderName << std::endl;
         }
         catch (const fs::filesystem_error& ex)
         {
-            std::cerr << "Failed to create or navigate to folder: " << folderName << ". Error: " << ex.what() << std::endl;
+            std::cerr << "Failed to create folder: " << folderName << ". Error: " << ex.what() << std::endl;
         }
     }
 }
+
 
 /// @brief Creates new message file in current folder.
 /// @brief Bases name on index retrieved from "_index.txt"
@@ -56,6 +88,7 @@ void navigateToFolder(const char* folderName)
 void saveNewMail(std::string* sender, std::string* receiver, std::string* subject, std::string* message, int* current_socket)
 {
     // read currentIndex from _index.txt file
+    pthread_mutex_lock(&mutex);
     int currentIndex = 0;
     std::ifstream indexFile("_index.txt");
     if (indexFile.is_open())
@@ -70,6 +103,8 @@ void saveNewMail(std::string* sender, std::string* receiver, std::string* subjec
 
     // create new message file
     std::string filename = std::to_string(currentIndex) + ".txt";
+    pthread_mutex_unlock(&mutex);
+
     std::ofstream file(filename);
 
     if (file.is_open())
@@ -89,6 +124,7 @@ void saveNewMail(std::string* sender, std::string* receiver, std::string* subjec
         }
 
         // increment index in file 
+        pthread_mutex_lock(&mutex);
         ++currentIndex;
         std::ofstream newIndexFile("_index.txt");
         if (newIndexFile.is_open())
@@ -100,6 +136,7 @@ void saveNewMail(std::string* sender, std::string* receiver, std::string* subjec
         {
             std::cerr << "Unable to update index." << std::endl;
         }
+        pthread_mutex_unlock(&mutex);
     }
     else
     {
