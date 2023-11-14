@@ -87,7 +87,10 @@ int main(int argc, char **argv)
 
    ////////////////////////////////////////////////////////////////////////////
    // RECEIVE DATA
-   size = recv(create_socket, buffer, BUF - 1, 0);
+
+   int socketCopy = create_socket;
+
+   size = recv(socketCopy, buffer, BUF - 1, 0);
    if (size == -1)
    {
       perror("recv error");
