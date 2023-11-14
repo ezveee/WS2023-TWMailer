@@ -173,21 +173,14 @@ void* clientCommunication(void *data)
    int size;
    int* current_socket = (int*)data;
 
-   // pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
+   std::cout << "The thread " << pthread_self() << " has started communciating with the server." << std::endl;
 
-   std::cout << "this is thread " << pthread_self() << std::endl;
-
-   // pthread_mutex_lock(&mutex);
    strcpy(buffer, "Welcome to twmailer!\r\nPlease enter your commands...\r\n(SEND, READ, LIST, DEL, QUIT)\r\n");
    if (send(*current_socket, buffer, strlen(buffer), 0) == -1)
    {
       perror("send failed");
       return NULL;
    }
-   // pthread_mutex_unlock(&mutex);
-
-   // no i do not :D
-   // std::cout << "do i even get here" << std::endl;
 
    do
    {
