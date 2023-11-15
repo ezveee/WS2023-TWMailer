@@ -1,5 +1,7 @@
 #include "helperMethods.h"
 
+#include <ldap.h>
+
 /*
    most of the magic (spaghetti :D) happens here
    
@@ -8,6 +10,113 @@
    (sender, recipient, subject, message, whatever)
    and then use those components for different functionalities
 */
+
+void handleLoginRequest(std::istringstream* stream, int* current_socket)
+{
+   std::string user, password;
+
+   // seperate user input into variables
+   if (!(std::getline(*stream, user) &&
+      std::getline(*stream, password)))
+   {
+      std::cerr << "getline() error" << std::endl;
+   }
+   
+   // TODO: do all the LDAP stuff here
+   ////////////////////////////////////////////////////////////////////////////
+   // LDAP config
+   // anonymous bind with user and pw empty
+   const char *ldapUri = "ldap://ldap.technikum-wien.at:389";
+   const int ldapVersion = LDAP_VERSION3;
+
+   // read username (bash: export ldapuser=<yourUsername>)
+   char ldapBindUser[256];
+   char rawLdapUser[128];
+   
+   strcpy(rawLdapUser, user.c_str());
+   sprintf(ldapBindUser, "uid=%s,ou=people,dc=technikum-wien,dc=at", rawLdapUser);
+
+   // read password (bash: export ldappw=<yourPW>)
+   char ldapBindPassword[256];
+   strcpy(ldapBindPassword, password.c_str());
+
+   // general
+   int rc = 0; // return code
+
+   ////////////////////////////////////////////////////////////////////////////
+   // setup LDAP connection
+   LDAP *ldapHandle;
+   rc = ldap_initialize(&ldapHandle, ldapUri);
+   if (rc != LDAP_SUCCESS)
+   {
+      fprintf(stderr, "ldap_init failed\n");
+      exit(1);
+   }
+   printf("connected to LDAP server %s\n", ldapUri);
+
+   ////////////////////////////////////////////////////////////////////////////
+   // set verison options
+   rc = ldap_set_option(
+       ldapHandle,
+       LDAP_OPT_PROTOCOL_VERSION, // OPTION
+       &ldapVersion);             // IN-Value
+   if (rc != LDAP_OPT_SUCCESS)
+   {
+      fprintf(stderr, "ldap_set_option(PROTOCOL_VERSION): %s\n", ldap_err2string(rc));
+      ldap_unbind_ext_s(ldapHandle, NULL, NULL);
+      exit(1);
+   }
+
+   ////////////////////////////////////////////////////////////////////////////
+   // start connection secure (initialize TLS)
+   rc = ldap_start_tls_s(
+       ldapHandle,
+       NULL,
+       NULL);
+   if (rc != LDAP_SUCCESS)
+   {
+      fprintf(stderr, "ldap_start_tls_s(): %s\n", ldap_err2string(rc));
+      ldap_unbind_ext_s(ldapHandle, NULL, NULL);
+      exit(1);
+   }
+
+   ////////////////////////////////////////////////////////////////////////////
+   // bind credentials
+   BerValue bindCredentials;
+   bindCredentials.bv_val = (char *)ldapBindPassword;
+   bindCredentials.bv_len = strlen(ldapBindPassword);
+   BerValue *servercredp; // server's credentials
+   rc = ldap_sasl_bind_s(
+       ldapHandle,
+       ldapBindUser,
+       LDAP_SASL_SIMPLE,
+       &bindCredentials,
+       NULL,
+       NULL,
+       &servercredp);
+   if (rc != LDAP_SUCCESS)
+   {
+      fprintf(stderr, "LDAP bind error: %s\n", ldap_err2string(rc));
+      ldap_unbind_ext_s(ldapHandle, NULL, NULL);
+
+      if (send(*current_socket, "Invalid credentials", 20, 0) == -1)
+      {
+         perror("send answer failed");
+      }
+      return;
+   }
+
+   //ldap_unbind_ext_s(ldapHandle, NULL, NULL);
+
+   if (send(*current_socket, "Valid credentials", 20, 0) == -1)
+   {
+      perror("send answer failed");
+   }
+   
+}
+
+
+
 
 void handleSendRequest(std::istringstream* stream, int* current_socket)
 {

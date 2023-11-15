@@ -154,7 +154,7 @@ void* clientCommunication(void *data)
    int size;
    int* current_socket = (int*)data;
 
-   strcpy(buffer, "Welcome to twmailer!\r\nPlease enter your commands...\r\n(SEND, READ, LIST, DEL, QUIT)\r\n");
+   strcpy(buffer, "Welcome to twmailer!\r\nPlease enter your commands...\r\n(LOGIN, SEND, READ, LIST, DEL, QUIT)\r\n");
    if (send(*current_socket, buffer, strlen(buffer), 0) == -1)
    {
       perror("send failed");
@@ -195,6 +195,8 @@ void* clientCommunication(void *data)
 
       buffer[size] = '\0';
 
+      printf("Message received: %s\n", buffer);
+
       // turn buffer into std::string
       // create stringstream from said string
       // use getline to read first line of stream into action variable
@@ -204,7 +206,10 @@ void* clientCommunication(void *data)
       std::getline(stream, action);
       
       // handle...Request(...) functions in requestHandling.h
-      if (action == "SEND")
+      if (action == "LOGIN")
+         handleLoginRequest(&stream, current_socket);
+
+      else if (action == "SEND")
          handleSendRequest(&stream, current_socket);
 
       else if (action == "LIST")
@@ -216,10 +221,9 @@ void* clientCommunication(void *data)
       else if (action == "DEL")
          handleDeleteRequest(&stream, current_socket);
          
-      
-      printf("Message received: %s\n", buffer);
-
    } while (strcasecmp(buffer, "QUIT") != 0 && !abortRequested);
+
+   //ldap_unbind_ext_s(ldapHandle, NULL, NULL);
 
    // closes/frees the descriptor if not already
    if (*current_socket != -1)

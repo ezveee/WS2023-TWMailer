@@ -47,6 +47,7 @@ int main(int argc, char **argv)
    struct sockaddr_in address;
    int size;
    bool hasQuit = false;
+   bool isLoggedIn = false;
 
    ////////////////////////////////////////////////////////////////////////////
    // CREATE A SOCKET
@@ -100,6 +101,8 @@ int main(int argc, char **argv)
       printf("%s", buffer);
    }
 
+   // char ldapBindPassword[256];
+   std::string LDAPuser, LDAPpassword;
    std::string sender, receiver, subject, message;
    std::string user, messageNumber;
 
@@ -132,11 +135,52 @@ int main(int argc, char **argv)
                break;
             }
          }
+         
+         //////////////////////////////////////////////////////////////////////
+         // LOGIN
+         if (strcasecmp(buffer, "LOGIN") == 0)
+         {
+            if (isLoggedIn)
+            {
+               std::cout << "You are logged in already.\n";
+               continue;
+            }
+
+            std::cout << "Username: ";
+            do
+            {
+               std::getline(std::cin, LDAPuser);
+            }
+            while (LDAPuser.length() > 8 || LDAPuser.empty());
+            
+            std::cout << "Password: ";
+            //getpass(LDAPpassword.c_str());
+            do
+            {
+               std::getline(std::cin, LDAPpassword);
+            }
+            while (LDAPpassword.length() < 5 || LDAPpassword.empty());
+
+            std::string loginRequest = "LOGIN\n" + LDAPuser + "\n" + LDAPpassword + "\n";
+
+            // send data to server
+            if (send(create_socket, loginRequest.c_str(), loginRequest.length(), 0) == -1) 
+            {
+               perror("send error");
+               break;
+            }
+         }
 
          //////////////////////////////////////////////////////////////////////
          // SEND
          else if (strcasecmp(buffer, "SEND") == 0)
          {
+            if (!isLoggedIn)
+            {
+               std::cout << "[PERMISSION DENIED]: To access this function, please log in.\n";
+               continue;
+            }
+
             std::cout << "Sender: ";
             do
             {
@@ -181,6 +225,12 @@ int main(int argc, char **argv)
          // LIST
          else if (strcasecmp(buffer, "LIST") == 0)
          {
+            if (!isLoggedIn)
+            {
+               std::cout << "[PERMISSION DENIED]: To access this function, please log in.\n";
+               continue;
+            }
+
             std::cout << "User: ";
             do
             {
@@ -202,6 +252,12 @@ int main(int argc, char **argv)
          // READ
          else if (strcasecmp(buffer, "READ") == 0)
          {
+            if (!isLoggedIn)
+            {
+               std::cout << "[PERMISSION DENIED]: To access this function, please log in.\n";
+               continue;
+            }
+
             std::cout << "User: ";
             do
             {
@@ -225,6 +281,12 @@ int main(int argc, char **argv)
          // DELETE
          else if (strcasecmp(buffer, "DEL") == 0)
          {
+            if (!isLoggedIn)
+            {
+               std::cout << "[PERMISSION DENIED]: To access this function, please log in.\n";
+               continue;
+            }
+
             std::cout << "User: ";
             do
             {
@@ -251,6 +313,36 @@ int main(int argc, char **argv)
 
          //////////////////////////////////////////////////////////////////////
          // RECEIVE FEEDBACK
+
+         // super scuffed TODO: please change this
+         if (strcasecmp(buffer, "LOGIN") == 0)
+         {
+            size = recv(create_socket, buffer, BUF - 1, 0);
+            if (size == -1)
+            {
+               perror("recv error");
+               break;
+            }
+            if (size == 0)
+            {
+               printf("Server closed remote socket\n");
+               break;
+            }
+            
+            if (!(strcmp(buffer, "Valid credentials") == 0))
+            {
+               std::cout << "Invalid credentials\n";
+               continue;
+            }
+
+            isLoggedIn = true;
+            std::cout << "Login was successful.\n";
+            continue;
+
+         }
+         // end of super scuffed stuff
+
+
          size = recv(create_socket, buffer, BUF - 1, 0);
          if (size == -1)
          {
