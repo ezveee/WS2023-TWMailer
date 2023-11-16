@@ -13,37 +13,6 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 /// yes -> changes cwd;
 /// no -> creates folder, then changes cwd
 /// @param folderName 
-// void navigateToFolder(const char* folderName)
-// {
-//     fs::path directoryPath(folderName);
-// 
-//     if (fs::is_directory(directoryPath))
-//     {
-//         try
-//         {
-//             fs::current_path(directoryPath);
-//             std::cout << "Navigated to existing folder: " << folderName << std::endl;
-//         }
-//         catch (const fs::filesystem_error& ex)
-//         {
-//             std::cerr << "Failed to navigate to folder: " << folderName << ". Error: " << ex.what() << std::endl;
-//         }
-//     }
-//     else
-//     {
-//         try
-//         {
-//             fs::create_directory(directoryPath);
-//             fs::current_path(directoryPath);
-//             std::cout << "Created and navigated to new folder: " << folderName << std::endl;
-//         }
-//         catch (const fs::filesystem_error& ex)
-//         {
-//             std::cerr << "Failed to create or navigate to folder: " << folderName << ". Error: " << ex.what() << std::endl;
-//         }
-//     }
-// }
-
 void navigateToFolder(const char* folderName)
 {
     fs::path directoryPath(folderName);
@@ -65,11 +34,12 @@ void navigateToFolder(const char* folderName)
         try
         {
             fs::create_directory(directoryPath);
-            std::cout << "Created folder: " << folderName << std::endl;
+            fs::current_path(directoryPath);
+            std::cout << "Created and navigated to new folder: " << folderName << std::endl;
         }
         catch (const fs::filesystem_error& ex)
         {
-            std::cerr << "Failed to create folder: " << folderName << ". Error: " << ex.what() << std::endl;
+            std::cerr << "Failed to create or navigate to folder: " << folderName << ". Error: " << ex.what() << std::endl;
         }
     }
 }
