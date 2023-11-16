@@ -48,6 +48,7 @@ int main(int argc, char **argv)
    int size;
    bool hasQuit = false;
    bool isLoggedIn = false;
+   std::string sessionUser = "";
 
    ////////////////////////////////////////////////////////////////////////////
    // CREATE A SOCKET
@@ -142,7 +143,7 @@ int main(int argc, char **argv)
          {
             if (isLoggedIn)
             {
-               std::cout << "You are logged in already.\n";
+               std::cout << "<< You are already logged in. (" << sessionUser << ")\n";
                continue;
             }
 
@@ -164,7 +165,7 @@ int main(int argc, char **argv)
             std::string loginRequest = "LOGIN\n" + LDAPuser + "\n" + LDAPpassword + "\n";
 
             // send data to server
-            if (send(create_socket, loginRequest.c_str(), loginRequest.length(), 0) == -1) 
+            if (send(create_socket, loginRequest.c_str(), loginRequest.length() + 1, 0) == -1) 
             {
                perror("send error");
                break;
@@ -180,13 +181,6 @@ int main(int argc, char **argv)
                std::cout << "[PERMISSION DENIED]: To access this function, please log in.\n";
                continue;
             }
-
-            std::cout << "Sender: ";
-            do
-            {
-               std::getline(std::cin, sender);
-            }
-            while (sender.length() > 8 || sender.empty());
 
             std::cout << "Receiver: ";
             do
@@ -211,7 +205,7 @@ int main(int argc, char **argv)
                message += line + "\n";
             }
 
-            std::string sendRequest = "SEND\n" + sender + "\n" + receiver + "\n" + subject + "\n" + message + ".\n";
+            std::string sendRequest = "SEND\n" + sessionUser + "\n" + receiver + "\n" + subject + "\n" + message + ".\n";
 
             // send data to server
             if (send(create_socket, sendRequest.c_str(), sendRequest.length(), 0) == -1) 
@@ -219,6 +213,9 @@ int main(int argc, char **argv)
                perror("send error");
                break;
             }
+
+            message = "";
+
          }
 
          //////////////////////////////////////////////////////////////////////
@@ -231,14 +228,7 @@ int main(int argc, char **argv)
                continue;
             }
 
-            std::cout << "User: ";
-            do
-            {
-               std::getline(std::cin, user);
-            }
-            while (user.length() > 8 || user.empty());
-
-            std::string listRequest = "LIST\n" + user + "\n";
+            std::string listRequest = "LIST\n" + sessionUser + "\n";
 
             // send data to server
             if (send(create_socket, listRequest.c_str(), listRequest.length(), 0) == -1) 
@@ -258,16 +248,10 @@ int main(int argc, char **argv)
                continue;
             }
 
-            std::cout << "User: ";
-            do
-            {
-               std::getline(std::cin, user);
-            }
-            while (user.length() > 8 || user.empty());
             std::cout << "Message number: ";
             std::getline(std::cin, messageNumber);
 
-            std::string readRequest = "READ\n" + user + "\n" + messageNumber + "\n";
+            std::string readRequest = "READ\n" + sessionUser + "\n" + messageNumber + "\n";
 
             // send data to server
             if (send(create_socket, readRequest.c_str(), readRequest.length(), 0) == -1) 
@@ -287,16 +271,10 @@ int main(int argc, char **argv)
                continue;
             }
 
-            std::cout << "User: ";
-            do
-            {
-               std::getline(std::cin, user);
-            }
-            while (user.length() > 8 || user.empty());
             std::cout << "Message number: ";
             std::getline(std::cin, messageNumber);
 
-            std::string deleteRequest = "DEL\n" + user + "\n" + messageNumber + "\n";
+            std::string deleteRequest = "DEL\n" + sessionUser + "\n" + messageNumber + "\n";
 
             // send data to server
             if (send(create_socket, deleteRequest.c_str(), deleteRequest.length(), 0) == -1) 
@@ -329,14 +307,16 @@ int main(int argc, char **argv)
                break;
             }
             
-            if (!(strcmp(buffer, "Valid credentials") == 0))
+            if ((strcmp(buffer, "Invalid credentials.") == 0))
             {
-               std::cout << "Invalid credentials\n";
+               buffer[size] = '\0';
+               printf("<< %s\n", buffer);
                continue;
             }
 
             isLoggedIn = true;
-            std::cout << "Login was successful.\n";
+            sessionUser = buffer;
+            std::cout << "<< Login was successful. Welcome " << sessionUser << "!\n";
             continue;
 
          }
@@ -360,6 +340,7 @@ int main(int argc, char **argv)
             printf("<< %s", buffer);
          }
       }
+
    } while (!hasQuit);
 
    ////////////////////////////////////////////////////////////////////////////

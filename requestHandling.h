@@ -31,6 +31,7 @@ void handleLoginRequest(std::istringstream* stream, int* current_socket)
    
    strcpy(rawLdapUser, user.c_str());
    sprintf(ldapBindUser, "uid=%s,ou=people,dc=technikum-wien,dc=at", rawLdapUser);
+   // std::cout << ldapBindUser << "\n" << rawLdapUser << std::endl;
 
    // read password (bash: export ldappw=<yourPW>)
    char ldapBindPassword[256];
@@ -60,23 +61,21 @@ void handleLoginRequest(std::istringstream* stream, int* current_socket)
       fprintf(stderr, "LDAP bind error: %s\n", ldap_err2string(rc));
       ldap_unbind_ext_s(ldapHandle, NULL, NULL);
 
-      if (send(*current_socket, "Invalid credentials", 20, 0) == -1)
+      if (send(*current_socket, "Invalid credentials.", 25, 0) == -1)
       {
          perror("send answer failed");
       }
       return;
    }
 
-   //ldap_unbind_ext_s(ldapHandle, NULL, NULL);
+   ldap_unbind_ext_s(ldapHandle, NULL, NULL);
 
-   if (send(*current_socket, "Valid credentials", 20, 0) == -1)
+   if (send(*current_socket, rawLdapUser, strlen(rawLdapUser) + 1, 0) == -1)
    {
       perror("send answer failed");
    }
    
 }
-
-
 
 
 void handleSendRequest(std::istringstream* stream, int* current_socket)
