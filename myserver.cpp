@@ -129,8 +129,10 @@ int main(int argc, char **argv)
              ntohs(cliaddress.sin_port));
 
       pthread_t clientThread;
+      int* clientSocket = (int*)malloc(sizeof(int));
+      *clientSocket = new_socket;
 
-      if(pthread_create(&clientThread, NULL, &clientCommunication, (void*)&new_socket) != 0)
+      if(pthread_create(&clientThread, NULL, &clientCommunication, (void*)clientSocket) != 0)
       {
          perror("error creating thread");
       }
@@ -140,14 +142,8 @@ int main(int argc, char **argv)
          perror("error detaching thread");
       }
 
-      // clientCommunication(&new_socket);
-      // new_socket = -1;
-
-      // THE BITCH SHUTS DOWN BEFORE ANYTHING COULD HAPPEN OMG
-      // std::cout << "are we here now?" << std::endl;
+      new_socket = -1;
    }
-
-   new_socket = -1;
 
    // frees the descriptor
    if (create_socket != -1)
