@@ -144,8 +144,7 @@ int main(int argc, char **argv)
 
       new_socket = -1;
    }
-   
-   
+
    // frees the descriptor
    if (create_socket != -1)
    {
