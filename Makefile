@@ -1,6 +1,6 @@
 CC=g++
 
-CFLAGS=-g -Wall -Wextra -Werror -O -std=c++17 -pthread
+CFLAGS=-g -Wall -Wextra -Werror -O -std=c++17 -pthread -fsanitize=address
 LIBS=-lldap -llber
 
 rebuild: clean all
