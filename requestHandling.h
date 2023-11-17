@@ -68,6 +68,8 @@ void handleLoginRequest(std::istringstream* stream, int* current_socket)
       return;
    }
 
+   std::cout << "Login succeeded." << std::endl;
+
    ldap_unbind_ext_s(ldapHandle, NULL, NULL);
 
    if (send(*current_socket, rawLdapUser, strlen(rawLdapUser) + 1, 0) == -1)

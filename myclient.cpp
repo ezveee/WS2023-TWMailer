@@ -7,6 +7,8 @@
 #include <string.h>
 #include <iostream>
 
+#include "helperMethods.h"
+
 /*
    PROGRAM USAGE:
    server: ./bin/server <port> <any directory name for mailspool -> will be created if not exists>
@@ -105,7 +107,7 @@ int main(int argc, char **argv)
       printf("%s", buffer);
    }
 
-   // char ldapBindPassword[256];
+   char ldapBindPassword[256];
    std::string LDAPuser, LDAPpassword;
    std::string sender, receiver, subject, message;
    std::string user, messageNumber;
@@ -156,16 +158,11 @@ int main(int argc, char **argv)
                std::getline(std::cin, LDAPuser);
             }
             while (LDAPuser.length() > 8 || LDAPuser.empty());
-            
-            std::cout << "Password: ";
-            //getpass(LDAPpassword.c_str());
-            do
-            {
-               std::getline(std::cin, LDAPpassword);
-            }
-            while (LDAPpassword.length() < 5 || LDAPpassword.empty());
 
-            std::string loginRequest = "LOGIN\n" + LDAPuser + "\n" + LDAPpassword + "\n";
+            getpass(ldapBindPassword);
+
+            // std::string loginRequest = "LOGIN\n" + LDAPuser + "\n" + LDAPpassword + "\n";
+            std::string loginRequest = "LOGIN\n" + LDAPuser + "\n" + ldapBindPassword + "\n";
 
             // send data to server
             if (send(create_socket, loginRequest.c_str(), loginRequest.length() + 1, 0) == -1) 
@@ -181,7 +178,7 @@ int main(int argc, char **argv)
          {
             if (!isLoggedIn)
             {
-               std::cout << "[PERMISSION DENIED]: To access this function, please log in.\n";
+               std::cout << "<< [PERMISSION DENIED]: To access this function, please log in.\n";
                continue;
             }
 
@@ -227,7 +224,7 @@ int main(int argc, char **argv)
          {
             if (!isLoggedIn)
             {
-               std::cout << "[PERMISSION DENIED]: To access this function, please log in.\n";
+               std::cout << "<< [PERMISSION DENIED]: To access this function, please log in.\n";
                continue;
             }
 
@@ -247,7 +244,7 @@ int main(int argc, char **argv)
          {
             if (!isLoggedIn)
             {
-               std::cout << "[PERMISSION DENIED]: To access this function, please log in.\n";
+               std::cout << "<< [PERMISSION DENIED]: To access this function, please log in.\n";
                continue;
             }
 
@@ -270,7 +267,7 @@ int main(int argc, char **argv)
          {
             if (!isLoggedIn)
             {
-               std::cout << "[PERMISSION DENIED]: To access this function, please log in.\n";
+               std::cout << "<< [PERMISSION DENIED]: To access this function, please log in.\n";
                continue;
             }
 

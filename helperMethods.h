@@ -8,9 +8,87 @@
 #include <termios.h>
 #include <stdio.h>
 #include <ldap.h>
+#include <string>
+#include <cstring>
 
 namespace fs = std::filesystem;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
+
+
+int getch()
+{
+    int ch;
+    // https://man7.org/linux/man-pages/man3/termios.3.html
+    struct termios t_old, t_new;
+
+    // https://man7.org/linux/man-pages/man3/termios.3.html
+    // tcgetattr() gets the parameters associated with the object referred
+    //   by fd and stores them in the termios structure referenced by
+    //   termios_p
+    tcgetattr(STDIN_FILENO, &t_old);
+    
+    // copy old to new to have a base for setting c_lflags
+    t_new = t_old;
+
+    // https://man7.org/linux/man-pages/man3/termios.3.html
+    //
+    // ICANON Enable canonical mode (described below).
+    //   * Input is made available line by line (max 4096 chars).
+    //   * In noncanonical mode input is available immediately.
+    //
+    // ECHO   Echo input characters.
+    t_new.c_lflag &= ~(ICANON | ECHO);
+    
+    // sets the attributes
+    // TCSANOW: the change occurs immediately.
+    tcsetattr(STDIN_FILENO, TCSANOW, &t_new);
+
+    ch = getchar();
+
+    // reset stored attributes
+    tcsetattr(STDIN_FILENO, TCSANOW, &t_old);
+
+    return ch;
+}
+
+void getpass(char* inputPassword)
+{
+    int show_asterisk = 0;
+
+    const char BACKSPACE = 127;
+    const char RETURN = 10;
+
+    unsigned char ch = 0;
+    std::string password;
+
+    printf("Password: ");
+
+    while ((ch = getch()) != RETURN)
+    {
+        if (ch == BACKSPACE)
+        {
+            if (password.length() != 0)
+            {
+                if (show_asterisk)
+                {
+                    printf("\b \b"); // backslash: \b
+                }
+                password.resize(password.length() - 1);
+            }
+        }
+        else
+        {
+            password += ch;
+            if (show_asterisk)
+            {
+                printf("*");
+            }
+        }
+    }
+    printf("\n");
+    //return password.c_str();
+    strcpy(inputPassword, password.c_str());
+}
 
 /// @brief Checks if folder "folderName" exists: 
 /// yes -> changes cwd;
@@ -119,61 +197,61 @@ void saveNewMail(std::string* sender, std::string* receiver, std::string* subjec
 
 }
 
-int getch()
-{
-    int ch;
-    struct termios t_old, t_new;
-    tcgetattr(STDIN_FILENO, &t_old);
+// int getch()
+// {
+//     int ch;
+//     struct termios t_old, t_new;
+//     tcgetattr(STDIN_FILENO, &t_old);
 
-    t_new = t_old;
+//     t_new = t_old;
     
-    t_new.c_lflag &= ~(ICANON | ECHO);
+//     t_new.c_lflag &= ~(ICANON | ECHO);
     
-    tcsetattr(STDIN_FILENO, TCSANOW, &t_new);
+//     tcsetattr(STDIN_FILENO, TCSANOW, &t_new);
 
-    ch = getchar();
-    tcsetattr(STDIN_FILENO, TCSANOW, &t_old);
+//     ch = getchar();
+//     tcsetattr(STDIN_FILENO, TCSANOW, &t_old);
 
-    return ch;
-}
+//     return ch;
+// }
 
-void getpass(char* inputPassword)
-{
-    int show_asterisk = 0;
+// void getpass(char* inputPassword)
+// {
+//     int show_asterisk = 0;
 
-    const char BACKSPACE = 127;
-    const char RETURN = 10;
+//     const char BACKSPACE = 127;
+//     const char RETURN = 10;
 
-    unsigned char ch = 0;
-    std::string password;
+//     unsigned char ch = 0;
+//     std::string password;
 
-    printf("Password: ");
+//     printf("Password: ");
 
-    while ((ch = getch()) != RETURN)
-    {
-        if (ch == BACKSPACE)
-        {
-            if (password.length() != 0)
-            {
-                if (show_asterisk)
-                {
-                    printf("\b \b"); // backslash: \b
-                }
-                password.resize(password.length() - 1);
-            }
-        }
-        else
-        {
-            password += ch;
-            if (show_asterisk)
-            {
-                printf("*");
-            }
-        }
-    }
-    printf("\n");
-    strcpy(inputPassword, password.c_str());
-}
+//     while ((ch = getch()) != RETURN)
+//     {
+//         if (ch == BACKSPACE)
+//         {
+//             if (password.length() != 0)
+//             {
+//                 if (show_asterisk)
+//                 {
+//                     printf("\b \b"); // backslash: \b
+//                 }
+//                 password.resize(password.length() - 1);
+//             }
+//         }
+//         else
+//         {
+//             password += ch;
+//             if (show_asterisk)
+//             {
+//                 printf("*");
+//             }
+//         }
+//     }
+//     printf("\n");
+//     strcpy(inputPassword, password.c_str());
+// }
 
 
 LDAP* LDAPinit()

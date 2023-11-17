@@ -103,10 +103,10 @@ int main(int argc, char **argv)
    // open/create mail spool folder
    navigateToFolder(argv[2]);
    
+   printf("Waiting for connections...\n");
 
    while (!abortRequested)
    {
-      printf("Waiting for connections...\n");
 
       addrlen = sizeof(struct sockaddr_in);
       if ((new_socket = accept(create_socket,
@@ -124,13 +124,18 @@ int main(int argc, char **argv)
          break;
       }
 
-      printf("Client connected from %s:%d...\n",
-             inet_ntoa(cliaddress.sin_addr),
-             ntohs(cliaddress.sin_port));
+      // printf("Client connected from %s:%d...\n",
+      //        inet_ntoa(cliaddress.sin_addr),
+      //        ntohs(cliaddress.sin_port));
 
       pthread_t clientThread;
       int* clientSocket = (int*)malloc(sizeof(int));
       *clientSocket = new_socket;
+
+      std::cout << "\n[Server]: ";
+      printf("Client connected from %s:%d...\n",
+             inet_ntoa(cliaddress.sin_addr),
+             ntohs(cliaddress.sin_port));
 
       if(pthread_create(&clientThread, NULL, &clientCommunication, (void*)clientSocket) != 0)
       {
@@ -170,8 +175,6 @@ void* clientCommunication(void *data)
    int size;
    int* current_socket = (int*)data;
 
-   std::cout << "The thread " << pthread_self() << " has started communciating with the server." << std::endl;
-
    // pthread_mutex_lock(&mutex);
    strcpy(buffer, "Welcome to twmailer!\r\nPlease enter your commands...\r\n(LOGIN, SEND, READ, LIST, DEL, QUIT)\r\n");
    if (send(*current_socket, buffer, strlen(buffer), 0) == -1)
@@ -198,7 +201,8 @@ void* clientCommunication(void *data)
 
       if (size == 0)
       {
-         printf("Client closed remote socket\n"); // ignore error
+         std::cout << "\n[Thread " << pthread_self() << "]: Client closed remote socket." << std::endl;
+         // printf("Client closed remote socket\n"); // ignore error
          break;
       }
 
@@ -214,7 +218,8 @@ void* clientCommunication(void *data)
 
       buffer[size] = '\0';
 
-      printf("Message received: %s\n", buffer);
+      // printf("Message received: %s\n", buffer);
+      // std::cout << "[Thread " << pthread_self() << "]:" << buffer << std::endl << std::endl;
 
       // turn buffer into std::string
       // create stringstream from said string
@@ -226,19 +231,34 @@ void* clientCommunication(void *data)
       
       // handle...Request(...) functions in requestHandling.h
       if (action == "LOGIN")
+      {
+         std::cout << "\n[Thread " << pthread_self() << "]: Login Request" << std::endl;
          handleLoginRequest(&stream, current_socket);
+      }
 
       else if (action == "SEND")
+      {
+         std::cout << "\n[Thread " << pthread_self() << "]: Send Request" << std::endl;
          handleSendRequest(&stream, current_socket);
+      }
 
       else if (action == "LIST")
+      {
+         std::cout << "\n[Thread " << pthread_self() << "]: List Request" << std::endl;
          handleListRequest(&stream, current_socket);
+      }
 
       else if (action == "READ")
+      {
+         std::cout << "\n[Thread " << pthread_self() << "]: Read Request" << std::endl;
          handleReadRequest(&stream, current_socket);
+      }
          
       else if (action == "DEL")
+      {
+         std::cout << "\n[Thread " << pthread_self() << "]: Delete Request" << std::endl;
          handleDeleteRequest(&stream, current_socket);
+      }
          
    } while (strcasecmp(buffer, "QUIT") != 0 && !abortRequested);
 
@@ -265,7 +285,7 @@ void signalHandler(int sig)
 {
    if (sig == SIGINT)
    {
-      printf("abort Requested... "); // ignore error
+      printf("abort Requested...\n"); // ignore error
       abortRequested = 1;
       if (new_socket != -1)
       {
