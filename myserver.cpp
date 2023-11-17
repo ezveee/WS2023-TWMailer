@@ -30,6 +30,14 @@ int abortRequested = 0;
 int create_socket = -1;
 int new_socket = -1;
 
+// STRUCT IN REQUESTHANDLING.H
+// struct clientInformation
+// {
+//    int* clientSocket;
+//    struct sockaddr_in cliaddress;
+//    int blacklistCounter;
+// };
+
 // FORWARD DECLARATIONS
 void* clientCommunication(void* data);
 void signalHandler(int sig);
@@ -128,11 +136,14 @@ int main(int argc, char **argv)
              inet_ntoa(cliaddress.sin_addr),
              ntohs(cliaddress.sin_port));
 
+      clientInformation* client = (clientInformation*)malloc(sizeof(clientInformation));
       pthread_t clientThread;
-      int* clientSocket = (int*)malloc(sizeof(int));
-      *clientSocket = new_socket;
 
-      if(pthread_create(&clientThread, NULL, &clientCommunication, (void*)clientSocket) != 0)
+      client->clientSocket = (int*)malloc(sizeof(int));
+      *(client->clientSocket) = new_socket;
+      client->cliaddress = cliaddress;
+
+      if(pthread_create(&clientThread, NULL, &clientCommunication, (void*)client) != 0)
       {
          perror("error creating thread");
       }
@@ -143,6 +154,12 @@ int main(int argc, char **argv)
       }
 
       new_socket = -1;
+
+      if(abortRequested)
+      {
+         free(client->clientSocket);
+         free(client);
+      }
    }
 
 
@@ -168,7 +185,8 @@ void* clientCommunication(void *data)
 {
    char buffer[BUF];
    int size;
-   int* current_socket = (int*)data;
+   clientInformation* client = (clientInformation*)data;
+   int* current_socket = client->clientSocket;
 
    std::cout << "The thread " << pthread_self() << " has started communciating with the server." << std::endl;
 
@@ -226,7 +244,7 @@ void* clientCommunication(void *data)
       
       // handle...Request(...) functions in requestHandling.h
       if (action == "LOGIN")
-         handleLoginRequest(&stream, current_socket);
+         handleLoginRequest(&stream, client);
 
       else if (action == "SEND")
          handleSendRequest(&stream, current_socket);

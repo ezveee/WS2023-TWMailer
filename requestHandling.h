@@ -11,9 +11,23 @@
    and then use those components for different functionalities
 */
 
-void handleLoginRequest(std::istringstream* stream, int* current_socket)
+struct clientInformation
+{
+   int* clientSocket;
+   struct sockaddr_in cliaddress;
+};
+
+struct blacklistItem
+{
+   char ldapUser[128];
+   struct clientInformation client;
+   int blacklistCounter;
+};
+
+void handleLoginRequest(std::istringstream* stream, clientInformation* client)
 {
    std::string user, password;
+   int* current_socket = (int*)client->clientSocket;
 
    // seperate user input into variables
    if (!(std::getline(*stream, user) &&
