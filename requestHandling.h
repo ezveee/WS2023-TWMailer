@@ -1,6 +1,8 @@
 #include "helperMethods.h"
 
 #include <ldap.h>
+#include <vector>
+#include <cstring>
 
 /*
    most of the magic (spaghetti :D) happens here
@@ -11,50 +13,43 @@
    and then use those components for different functionalities
 */
 
-struct clientInformation
-{
-   int* clientSocket;
-   struct sockaddr_in cliaddress;
-};
+std::vector<blacklistItem*> blacklist;
 
-struct blacklistItem
-{
-   char ldapUser[128];
-   struct clientInformation client;
-   int blacklistCounter;
-};
+pthread_t blacklistTimeout;
+blacklistItem* item = (blacklistItem*)malloc(sizeof(blacklistItem));
 
 void handleLoginRequest(std::istringstream* stream, clientInformation* client)
 {
    std::string user, password;
    int* current_socket = (int*)client->clientSocket;
 
-   // seperate user input into variables
-   if (!(std::getline(*stream, user) &&
-      std::getline(*stream, password)))
+   // separate user input into variables
+   if (!(std::getline(*stream, user) && std::getline(*stream, password)))
    {
-      std::cerr << "getline() error" << std::endl;
+       std::cerr << "getline() error" << std::endl;
+       return;
    }
-   
+
+   item->user = user;
+   item->client.cliaddress = client->cliaddress;
+
    // TODO: do all the LDAP stuff here
    LDAP* ldapHandle = LDAPinit();
 
    // read username (bash: export ldapuser=<yourUsername>)
    char ldapBindUser[256];
    char rawLdapUser[128];
-   
    strcpy(rawLdapUser, user.c_str());
    sprintf(ldapBindUser, "uid=%s,ou=people,dc=technikum-wien,dc=at", rawLdapUser);
-   // std::cout << ldapBindUser << "\n" << rawLdapUser << std::endl;
 
+   // std::cout << ldapBindUser << "\n" << rawLdapUser << std::endl;
    // read password (bash: export ldappw=<yourPW>)
+
    char ldapBindPassword[256];
    strcpy(ldapBindPassword, password.c_str());
 
    // general
    int rc = 0; // return code
-
-   
 
    ////////////////////////////////////////////////////////////////////////////
    // bind credentials
@@ -62,35 +57,87 @@ void handleLoginRequest(std::istringstream* stream, clientInformation* client)
    bindCredentials.bv_val = (char *)ldapBindPassword;
    bindCredentials.bv_len = strlen(ldapBindPassword);
    BerValue *servercredp; // server's credentials
-   rc = ldap_sasl_bind_s(
-       ldapHandle,
-       ldapBindUser,
-       LDAP_SASL_SIMPLE,
-       &bindCredentials,
-       NULL,
-       NULL,
-       &servercredp);
+
+   if (isThreadRunning)
+   {
+      std::string timeoutMessage = "You are timed out.";
+      if (send(*current_socket, timeoutMessage.c_str(), timeoutMessage.length() + 1, 0) == -1)
+      {
+         perror("send answer failed");
+      }
+
+      return;
+   }
+   else
+   {
+      rc = ldap_sasl_bind_s(
+         ldapHandle,
+         ldapBindUser,
+         LDAP_SASL_SIMPLE,
+         &bindCredentials,
+         NULL,
+         NULL,
+         &servercredp);
+   }
+
    if (rc != LDAP_SUCCESS)
    {
       fprintf(stderr, "LDAP bind error: %s\n", ldap_err2string(rc));
       ldap_unbind_ext_s(ldapHandle, NULL, NULL);
 
+      bool itemFound = false;
+
+      pthread_mutex_lock(&mutex);
+      for (auto& i : blacklist)
+      {
+         if (i->user == item->user && (std::memcmp(&(i->client.cliaddress), &(item->client.cliaddress), sizeof(i->client.cliaddress)) == 0))
+         {
+            itemFound = true;
+            i->blacklistCounter++;
+            break;
+         }
+      }
+      pthread_mutex_unlock(&mutex);
+
+      if (!itemFound)
+      {
+         blacklist.push_back(item);
+      }
+
+      if (item->blacklistCounter >= 2)
+      {
+         if (pthread_create(&blacklistTimeout, NULL, &timeout, (void*)item) != 0)
+         {
+            perror("error creating thread");
+         }
+         else
+         {
+            isThreadRunning = true;
+            // return;
+         }
+
+         if(pthread_detach(blacklistTimeout) != 0)
+         {
+            perror("error detaching thread");
+         }
+      }
+
       if (send(*current_socket, "Invalid credentials.", 25, 0) == -1)
       {
          perror("send answer failed");
       }
+
       return;
    }
 
+   free(item);
    ldap_unbind_ext_s(ldapHandle, NULL, NULL);
 
    if (send(*current_socket, rawLdapUser, strlen(rawLdapUser) + 1, 0) == -1)
    {
-      perror("send answer failed");
+       perror("send answer failed");
    }
-   
 }
-
 
 void handleSendRequest(std::istringstream* stream, int* current_socket)
 {

@@ -8,9 +8,25 @@
 #include <termios.h>
 #include <stdio.h>
 #include <ldap.h>
+#include <netinet/in.h>
 
 namespace fs = std::filesystem;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
+
+struct clientInformation
+{
+   int* clientSocket;
+   struct sockaddr_in cliaddress;
+};
+
+struct blacklistItem
+{
+   std::string user;
+   struct clientInformation client;
+   int blacklistCounter = 0;
+};
+
+bool isThreadRunning = false;
 
 /// @brief Checks if folder "folderName" exists: 
 /// yes -> changes cwd;
@@ -223,4 +239,20 @@ LDAP* LDAPinit()
     }
 
     return ldapHandle;
+}
+
+void* timeout(void* data)
+{
+    blacklistItem* item = (blacklistItem*)data;
+
+    std::cout << "The timeout thread " << pthread_self() << " has been started." << std::endl;
+
+    sleep(60);
+
+    std::cout << "The thread has awoken from it's peaceful slumber, man i wish that was my job, just sleeping any time i get a task" << std::endl;
+
+    item->blacklistCounter = 0;
+    isThreadRunning = false;
+
+    return NULL;
 }
