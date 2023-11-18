@@ -1,5 +1,5 @@
 #include "helperMethods.h"
-
+#include <cmath>
 #include <ldap.h>
 
 /*
@@ -21,7 +21,10 @@ void handleLoginRequest(std::istringstream* stream, int* current_socket)
    {
       std::cerr << "getline() error" << std::endl;
    }
-   
+   // decrypt userdata
+   decrypt(42, user);
+   decrypt(42, password);
+
    // TODO: do all the LDAP stuff here
    LDAP* ldapHandle = LDAPinit();
 
@@ -86,8 +89,8 @@ void handleSendRequest(std::istringstream* stream, int* current_socket)
 
    // seperate user input into variables
    if (std::getline(*stream, sender) &&
-      std::getline(*stream, receiver) &&
-      std::getline(*stream, subject))
+       std::getline(*stream, receiver) &&
+       std::getline(*stream, subject))
    {
       message = "";
       while (std::getline(*stream, line) && line != ".")
@@ -212,7 +215,7 @@ void handleListRequest(std::istringstream* stream, int* current_socket)
 void handleReadRequest(std::istringstream* stream, int* current_socket)
 {
    // seperate user input into variables
-   std::string readResponse, user, messageNumber;
+   std::string textInMail, readResponse, user, messageNumber;
    getline(*stream, user);
    getline(*stream, messageNumber);
 
@@ -241,17 +244,17 @@ void handleReadRequest(std::istringstream* stream, int* current_socket)
       {
          std::ifstream file(entry.path());
          
-         // add each line from file to readResponse
+         // add each line from file to textInMail
          std::string line;
          int lineCounter = 0;
          while (std::getline(file, line))
          {
-            readResponse += (lineCounter == 0) ? "Sender: " : "";
-            readResponse += (lineCounter == 1) ? "Receiver: " : "";
-            readResponse += (lineCounter == 2) ? "Subject: " : "";
-            readResponse += (lineCounter == 3) ? "Message: " : "";
+            textInMail += (lineCounter == 0) ? "Sender: " : "";
+            textInMail += (lineCounter == 1) ? "Receiver: " : "";
+            textInMail += (lineCounter == 2) ? "Subject: " : "";
+            textInMail += (lineCounter == 3) ? "Message: " : "";
 
-            readResponse += line + "\n";
+            textInMail += line + "\n";
             ++lineCounter;
          }
 
@@ -264,18 +267,35 @@ void handleReadRequest(std::istringstream* stream, int* current_socket)
    if (!fileFound)
    {
       std::cout << "The file doesn't exist." << std::endl;
+      
       if (send(*current_socket, "ERR\n", 5, 0) == -1)
       {
          perror("send answer failed");
       }
       return;
    }
+   
+   // confirm end of message
+   textInMail += "\n.\n";
 
-   // otherwise send readResponse
-   if (send(*current_socket, readResponse.c_str(), readResponse.length(), 0) == -1)
+   // otherwise send textInMail
+
+   long currentPositionTextInMail = 0;
+   long msgSize = textInMail.length();
+
+   // send data to server
+   do
    {
-      perror("send answer failed");
-   }
+      readResponse = textInMail.substr(currentPositionTextInMail,1024);
+      currentPositionTextInMail += 1024;
+
+      if (send(*current_socket, readResponse.c_str(), readResponse.length(), 0) == -1)
+      {
+         perror("send answer failed");
+         break;
+      }
+   } 
+   while (currentPositionTextInMail < msgSize);
 }
 
 void handleDeleteRequest(std::istringstream* stream, int* current_socket)

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <iostream>
+#include <vector>
 
 #include "helperMethods.h"
 
@@ -158,7 +159,11 @@ int main(int argc, char **argv)
                std::getline(std::cin, LDAPuser);
             }
             while (LDAPuser.length() > 8 || LDAPuser.empty());
+            
+            
+            encrypt(42, LDAPuser);
 
+            // getpass already encrypts password
             getpass(ldapBindPassword);
 
             // std::string loginRequest = "LOGIN\n" + LDAPuser + "\n" + LDAPpassword + "\n";
@@ -198,6 +203,10 @@ int main(int argc, char **argv)
 
             std::cout << "Message: " << std::endl;
             std::string line;
+
+            // vector for saving long messages
+            std::vector<std::string> sendVector;
+
             while (std::getline(std::cin, line))
             {
                if (line == ".")
@@ -205,17 +214,26 @@ int main(int argc, char **argv)
                message += line + "\n";
             }
 
-            std::string sendRequest = "SEND\n" + sessionUser + "\n" + receiver + "\n" + subject + "\n" + message + ".\n";
+            long currentPositionInSendRequest = 0;
+            long msgSize = ("SEND\n" + sessionUser + "\n" + receiver + "\n" + subject + "\n" + message + "\n.\n").length();
 
+            std::string sendText = sessionUser + "\n" + receiver + "\n" + subject + "\n" + message + "\n.\n";
+            std::string sendRequest;
             // send data to server
-            if (send(create_socket, sendRequest.c_str(), sendRequest.length(), 0) == -1) 
-            {
-               perror("send error");
-               break;
-            }
-
+            do
+            { //                                                                      BUF-6 <-"SEND\n" 
+               sendRequest = "SEND\n" + sendText.substr(currentPositionInSendRequest,(BUF-6));
+               currentPositionInSendRequest += BUF-5;
+               if (send(create_socket, sendRequest.c_str(), sendRequest.length(), 0) == -1) 
+               {
+                  perror("send error");
+                  break;
+               }
+            } 
+            while (currentPositionInSendRequest < msgSize);
+            
+            // clear message
             message = "";
-
          }
 
          //////////////////////////////////////////////////////////////////////
@@ -321,26 +339,52 @@ int main(int argc, char **argv)
 
          }
          // end of super scuffed stuff
-
-
-         size = recv(create_socket, buffer, BUF - 1, 0);
-         if (size == -1)
+         
+         // READ has a special receive
+         if (strcasecmp(buffer, "READ") == 0)
          {
-            perror("recv error");
-            break;
-         }
-         else if (size == 0)
-         {
-            printf("Server closed remote socket\n");
-            break;
+            do
+            {
+               size = recv(create_socket, buffer, BUF - 1, 0);
+               if (size == -1)
+               {
+                  perror("recv error");
+                  break;
+               }
+               else if (size == 0)
+               {
+                  printf("Server closed remote socket\n");
+                  break;
+               }
+               else
+               {
+                  buffer[size] = '\0';
+                  printf("<< %s", buffer);
+               }
+            } 
+            while (buffer[size-1] != '.' && buffer[size-2] != '\n');
          }
          else
          {
-            buffer[size] = '\0';
-            printf("<< %s", buffer);
+            size = recv(create_socket, buffer, BUF - 1, 0);
+            if (size == -1)
+            {
+               perror("recv error");
+               break;
+            }
+            else if (size == 0)
+            {
+               printf("Server closed remote socket\n");
+               break;
+            }
+            else
+            {
+               buffer[size] = '\0';
+               printf("<< %s", buffer);
+            }
          }
       }
-
+      
    } while (!hasQuit);
 
    ////////////////////////////////////////////////////////////////////////////
@@ -357,6 +401,5 @@ int main(int argc, char **argv)
       }
       create_socket = -1;
    }
-
    return EXIT_SUCCESS;
 }

@@ -167,13 +167,16 @@ int main(int argc, char **argv)
 
    return EXIT_SUCCESS;
 }
-
+      int i = 0;
 // FUNCTIONS
 void* clientCommunication(void *data)
 {
    char buffer[BUF];
    int size;
    int* current_socket = (int*)data;
+
+   // stores message until all messages have arrived if message size is above 1027
+   std::string msgHelper="";
 
    // pthread_mutex_lock(&mutex);
    strcpy(buffer, "Welcome to twmailer!\r\nPlease enter your commands...\r\n(LOGIN, SEND, READ, LIST, DEL, QUIT)\r\n");
@@ -228,8 +231,12 @@ void* clientCommunication(void *data)
       std::string action;
       std::istringstream stream(request);
       std::getline(stream, action);
+
       
       // handle...Request(...) functions in requestHandling.h
+
+
+
       if (action == "LOGIN")
       {
          std::cout << "\n[Thread " << pthread_self() << "]: Login Request" << std::endl;
@@ -238,8 +245,20 @@ void* clientCommunication(void *data)
 
       else if (action == "SEND")
       {
-         std::cout << "\n[Thread " << pthread_self() << "]: Send Request" << std::endl;
-         handleSendRequest(&stream, current_socket);
+         // remove "SEND\n"
+         request.erase(0,5);
+
+         if(buffer[size-1] == '.' && buffer[size-2] == '\n')
+         {
+            stream = std::istringstream(msgHelper+request);
+            std::cout << "\n[Thread " << pthread_self() << "]: Send Request" << std::endl;
+            handleSendRequest(&stream, current_socket);
+            msgHelper="";
+         } 
+         else 
+         {
+            msgHelper += request;
+         }
       }
 
       else if (action == "LIST")

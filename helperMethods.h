@@ -51,6 +51,29 @@ int getch()
     return ch;
 }
 
+/// @brief encrypts string msg with a ceaser cipher using ceaserShift (works with all askii-chars) and stores it given string
+/// @param ceaserShift 
+/// @param msg 
+void encrypt(int ceaserShift, std::string& msg)
+{  
+    for (auto& c : msg) 
+        c = (c + ceaserShift)%128;  
+}
+
+/// @brief decrypts string msg with a ceaser cipher using ceaserShift (works with all askii-chars) and stores it given string
+/// @param ceaserShift 
+/// @param msg 
+void decrypt(int ceaserShift, std::string& msg)
+{
+    for (auto& c : msg)
+    {
+        if((ceaserShift-1) < c)
+            c -= ceaserShift;
+        else
+            c = 128 - (ceaserShift - c);
+    } 
+}
+
 void getpass(char* inputPassword)
 {
     int show_asterisk = 0;
@@ -87,6 +110,8 @@ void getpass(char* inputPassword)
     }
     printf("\n");
     //return password.c_str();
+    
+    encrypt(42, password);
     strcpy(inputPassword, password.c_str());
 }
 
