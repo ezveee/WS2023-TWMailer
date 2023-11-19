@@ -14,25 +14,6 @@
    PROGRAM USAGE:
    server: ./bin/server <port> <any directory name for mailspool -> will be created if not exists>
    client: ./bin/client 127.0.0.1 <same port as the one used for server>
-   
-   seas
-   there's not much change in this file compared to the ClientServerExample
-   so if you don't wanna go over all of that, here's a list of the biggest changes:
-
-   QUIT: line 125
-   SEND: line 137
-   LIST: line 181 (NOTE: messageNumber is based on the filename)
-   READ: line 202
-   DELETE: line 225
-
-   all of these effectively do the same (so we won't comment each of them seperately):
-      -> check which action (SEND, LIST, READ, DELETE) the user chose
-      (strcasecmp with buffer and string literal)
-      -> get user input for said action
-      -> compile all of the inputs into one string
-      -> send string to server via send() 
-
-   main action happens in the server file (and both of the header files)
 */
 
 
@@ -90,7 +71,6 @@ int main(int argc, char **argv)
 
    ////////////////////////////////////////////////////////////////////////////
    // RECEIVE DATA
-
    int socketCopy = create_socket;
 
    size = recv(socketCopy, buffer, BUF - 1, 0);
@@ -113,8 +93,9 @@ int main(int argc, char **argv)
    std::string sender, receiver, subject, message;
    std::string user, messageNumber;
 
-   bool errorOccuredDuringLoop = false;
+   bool errorOccuredDuringLoop, endOfRead = false;
 
+   // takes user input/commands and sends them to server
    do
    {
       printf(">> ");
@@ -138,37 +119,44 @@ int main(int argc, char **argv)
          if (strcasecmp(buffer, "QUIT") == 0)
          {
             hasQuit = true;
-            if (send(create_socket, buffer, size, 0) == -1) 
-            {
-               perror("send error");
-               break;
-            }
+            // "client closed remote socket" message wouldn't show up while send was in 
+            // if (send(create_socket, buffer, size, 0) == -1) 
+            // {
+            //    perror("send error");
+            //    break;
+            // }
+            break;
          }
          
          //////////////////////////////////////////////////////////////////////
          // LOGIN
-         if (strcasecmp(buffer, "LOGIN") == 0)
+         else if (strcasecmp(buffer, "LOGIN") == 0)
          {
+            // isLoggedIn set to false at start of program
+            // -> changed upon login
             if (isLoggedIn)
             {
                std::cout << "<< You are already logged in. (" << sessionUser << ")\n";
                continue;
             }
 
-            std::cout << "Username: ";
-            do
+            // gets user input until it is valid
+            bool isValidUsername = false;
+            while (!isValidUsername)
             {
+               std::cout << "Username: ";
                std::getline(std::cin, LDAPuser);
+               if (!(LDAPuser.length() > 8 || LDAPuser.empty()))
+                  isValidUsername = true;
             }
-            while (LDAPuser.length() > 8 || LDAPuser.empty());
-            
             
             encrypt(42, LDAPuser);
 
             // getpass already encrypts password
+            // getpass function from LDAP code sample
+            // used to not show password when it's being typed in
             getpass(ldapBindPassword);
 
-            // std::string loginRequest = "LOGIN\n" + LDAPuser + "\n" + LDAPpassword + "\n";
             std::string loginRequest = "LOGIN\n" + LDAPuser + "\n" + ldapBindPassword + "\n";
 
             // send data to server
@@ -183,25 +171,32 @@ int main(int argc, char **argv)
          // SEND
          else if (strcasecmp(buffer, "SEND") == 0)
          {
+            // check if user is logged in
+            // if not -> not permitted to use functions other than login/quit
             if (!isLoggedIn)
             {
                std::cout << "<< [PERMISSION DENIED]: To access this function, please log in.\n";
                continue;
             }
 
-            std::cout << "Receiver: ";
-            do
+            // gets user input for recipient, subject and message
+            bool isValidInput = false;
+            while (!isValidInput)
             {
+               std::cout << "Receiver: ";
                std::getline(std::cin, receiver);
+               if (!(receiver.length() > 8 || receiver.empty()))
+                  isValidInput = true;
             }
-            while (receiver.length() > 8 || receiver.empty());
             
-            std::cout << "Subject: ";
-            do
+            isValidInput = false;
+            while (!isValidInput)
             {
+               std::cout << "Subject: ";
                std::getline(std::cin, subject);
+               if (!(subject.length() > 80 || subject.empty()))
+                  isValidInput = true;
             }
-            while (subject.length() > 80 || subject.empty());
 
             std::cout << "Message: " << std::endl;
             std::string line;
@@ -227,6 +222,7 @@ int main(int argc, char **argv)
                if (send(create_socket, sendRequest.c_str(), sendRequest.length(), 0) == -1) 
                {
                   perror("send error");
+                  errorOccuredDuringLoop = true;
                   break;
                }
             } 
@@ -242,6 +238,8 @@ int main(int argc, char **argv)
          // LIST
          else if (strcasecmp(buffer, "LIST") == 0)
          {
+            // check if user is logged in
+            // if not -> not permitted to use functions other than login/quit
             if (!isLoggedIn)
             {
                std::cout << "<< [PERMISSION DENIED]: To access this function, please log in.\n";
@@ -262,12 +260,15 @@ int main(int argc, char **argv)
          // READ
          else if (strcasecmp(buffer, "READ") == 0)
          {
+            // check if user is logged in
+            // if not -> not permitted to use functions other than login/quit
             if (!isLoggedIn)
             {
                std::cout << "<< [PERMISSION DENIED]: To access this function, please log in.\n";
                continue;
             }
 
+            // gets user input
             std::cout << "Message number: ";
             std::getline(std::cin, messageNumber);
 
@@ -285,12 +286,15 @@ int main(int argc, char **argv)
          // DELETE
          else if (strcasecmp(buffer, "DEL") == 0)
          {
+            // check if user is logged in
+            // if not -> not permitted to use functions other than login/quit
             if (!isLoggedIn)
             {
                std::cout << "<< [PERMISSION DENIED]: To access this function, please log in.\n";
                continue;
             }
 
+            // gets user input
             std::cout << "Message number: ";
             std::getline(std::cin, messageNumber);
 
@@ -312,7 +316,8 @@ int main(int argc, char **argv)
          //////////////////////////////////////////////////////////////////////
          // RECEIVE FEEDBACK
 
-         // super scuffed TODO: please change this
+         // checks if user used login command
+         // if so -> recv from server gets handled differently 
          if (strcasecmp(buffer, "LOGIN") == 0)
          {
             size = recv(create_socket, buffer, BUF - 1, 0);
@@ -334,16 +339,23 @@ int main(int argc, char **argv)
                continue;
             }
 
+            if ((strcmp(buffer, "You are timed out.") == 0))
+            {
+               buffer[size] = '\0';
+               printf("<< %s\n", buffer);
+               continue;
+            }
+
+            // valid credentials -> session user gets set
             isLoggedIn = true;
             sessionUser = buffer;
             std::cout << "<< Login was successful. Welcome " << sessionUser << "!\n";
             continue;
 
          }
-         // end of super scuffed stuff
+
          else if (strcasecmp(buffer, "READ") == 0)
          {
-            bool endOfRead = false;
             do
             {
                size = recv(create_socket, buffer, BUF - 1, 0);
@@ -372,12 +384,12 @@ int main(int argc, char **argv)
                   printf("%s", buffer);
                }
             } 
-            // while (!endOfRead);
             while (!endOfRead);
 
-            if (errorOccuredDuringLoop) break;
-
+            endOfRead = false;
             printf("\n");
+
+            if (errorOccuredDuringLoop) break;
             continue;
          }
          else

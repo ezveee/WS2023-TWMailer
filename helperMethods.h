@@ -10,10 +10,25 @@
 #include <ldap.h>
 #include <string>
 #include <cstring>
+#include <netinet/in.h>
 
 namespace fs = std::filesystem;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
 
+struct clientInformation
+{
+   int* clientSocket;
+   struct sockaddr_in cliaddress;
+};
+
+struct blacklistItem
+{
+   std::string user;
+   struct clientInformation client;
+   int blacklistCounter = 0;
+};
+
+bool isThreadRunning = false;
 
 int getch()
 {
@@ -109,7 +124,6 @@ void getpass(char* inputPassword)
         }
     }
     printf("\n");
-    //return password.c_str();
     
     encrypt(42, password);
     strcpy(inputPassword, password.c_str());
@@ -222,63 +236,6 @@ void saveNewMail(std::string* sender, std::string* receiver, std::string* subjec
 
 }
 
-// int getch()
-// {
-//     int ch;
-//     struct termios t_old, t_new;
-//     tcgetattr(STDIN_FILENO, &t_old);
-
-//     t_new = t_old;
-    
-//     t_new.c_lflag &= ~(ICANON | ECHO);
-    
-//     tcsetattr(STDIN_FILENO, TCSANOW, &t_new);
-
-//     ch = getchar();
-//     tcsetattr(STDIN_FILENO, TCSANOW, &t_old);
-
-//     return ch;
-// }
-
-// void getpass(char* inputPassword)
-// {
-//     int show_asterisk = 0;
-
-//     const char BACKSPACE = 127;
-//     const char RETURN = 10;
-
-//     unsigned char ch = 0;
-//     std::string password;
-
-//     printf("Password: ");
-
-//     while ((ch = getch()) != RETURN)
-//     {
-//         if (ch == BACKSPACE)
-//         {
-//             if (password.length() != 0)
-//             {
-//                 if (show_asterisk)
-//                 {
-//                     printf("\b \b"); // backslash: \b
-//                 }
-//                 password.resize(password.length() - 1);
-//             }
-//         }
-//         else
-//         {
-//             password += ch;
-//             if (show_asterisk)
-//             {
-//                 printf("*");
-//             }
-//         }
-//     }
-//     printf("\n");
-//     strcpy(inputPassword, password.c_str());
-// }
-
-
 LDAP* LDAPinit()
 {
     ////////////////////////////////////////////////////////////////////////////
@@ -326,4 +283,20 @@ LDAP* LDAPinit()
     }
 
     return ldapHandle;
+}
+
+void* timeout(void* data)
+{
+    blacklistItem* item = (blacklistItem*)data;
+
+    std::cout << "The timeout thread " << pthread_self() << " has been started." << std::endl;
+
+    sleep(60);
+
+    std::cout << "The thread has awoken from it's peaceful slumber, man i wish that was my job, just sleeping any time i get a task" << std::endl;
+
+    item->blacklistCounter = 0;
+    isThreadRunning = false;
+
+    return NULL;
 }
