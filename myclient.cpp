@@ -113,6 +113,8 @@ int main(int argc, char **argv)
    std::string sender, receiver, subject, message;
    std::string user, messageNumber;
 
+   bool errorOccuredDuringLoop = false;
+
    do
    {
       printf(">> ");
@@ -204,9 +206,6 @@ int main(int argc, char **argv)
             std::cout << "Message: " << std::endl;
             std::string line;
 
-            // vector for saving long messages
-            std::vector<std::string> sendVector;
-
             while (std::getline(std::cin, line))
             {
                if (line == ".")
@@ -219,11 +218,12 @@ int main(int argc, char **argv)
 
             std::string sendText = sessionUser + "\n" + receiver + "\n" + subject + "\n" + message + "\n.\n";
             std::string sendRequest;
+
             // send data to server
             do
             { //                                                                      BUF-6 <-"SEND\n" 
                sendRequest = "SEND\n" + sendText.substr(currentPositionInSendRequest,(BUF-6));
-               currentPositionInSendRequest += BUF-5;
+               currentPositionInSendRequest += BUF-6;
                if (send(create_socket, sendRequest.c_str(), sendRequest.length(), 0) == -1) 
                {
                   perror("send error");
@@ -232,6 +232,8 @@ int main(int argc, char **argv)
             } 
             while (currentPositionInSendRequest < msgSize);
             
+            if (errorOccuredDuringLoop) break;
+
             // clear message
             message = "";
          }
@@ -339,30 +341,44 @@ int main(int argc, char **argv)
 
          }
          // end of super scuffed stuff
-         
-         // READ has a special receive
-         if (strcasecmp(buffer, "READ") == 0)
+         else if (strcasecmp(buffer, "READ") == 0)
          {
+            bool endOfRead = false;
             do
             {
                size = recv(create_socket, buffer, BUF - 1, 0);
                if (size == -1)
                {
                   perror("recv error");
+                  errorOccuredDuringLoop = true;
                   break;
                }
                else if (size == 0)
                {
                   printf("Server closed remote socket\n");
+                  errorOccuredDuringLoop = true;
                   break;
                }
                else
                {
+                  // replace "\n." with '\0' because end of READ has been reached 
+                  if(buffer[size-1] == '\n' && buffer[size-2] == '.' && buffer[size-3] == '\n')
+                  {
+                     size -= 3;
+                     endOfRead = true;
+                  } 
                   buffer[size] = '\0';
-                  printf("<< %s", buffer);
+                  
+                  printf("%s", buffer);
                }
             } 
-            while (buffer[size-1] != '.' && buffer[size-2] != '\n');
+            // while (!endOfRead);
+            while (!endOfRead);
+
+            if (errorOccuredDuringLoop) break;
+
+            printf("\n");
+            continue;
          }
          else
          {
