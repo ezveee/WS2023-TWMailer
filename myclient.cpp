@@ -93,7 +93,8 @@ int main(int argc, char **argv)
    std::string sender, receiver, subject, message;
    std::string user, messageNumber;
 
-   bool errorOccuredDuringLoop, endOfRead = false;
+   bool errorOccuredDuringLoop = false;
+   bool endOfRead = false;
 
    // takes user input/commands and sends them to server
    do
@@ -371,6 +372,12 @@ int main(int argc, char **argv)
                   errorOccuredDuringLoop = true;
                   break;
                }
+               else if(strcmp(buffer, "ERR\n") == 0)
+               {
+                  buffer[size] = '\0';
+                  printf("<< %s", buffer);
+                  endOfRead = true;
+               }
                else
                {
                   // replace "\n." with '\0' because end of READ has been reached 
@@ -387,7 +394,6 @@ int main(int argc, char **argv)
             while (!endOfRead);
 
             endOfRead = false;
-            printf("\n");
 
             if (errorOccuredDuringLoop) break;
             continue;
@@ -412,7 +418,6 @@ int main(int argc, char **argv)
             }
          }
       }
-      
    } while (!hasQuit);
 
    ////////////////////////////////////////////////////////////////////////////
