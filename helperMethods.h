@@ -38,7 +38,7 @@ bool isStringValidInput(std::string input)
     for (char c : input)
         if (!std::isalnum(c))
             return false; 
-   return true;
+    return true;
 }
 
 int getch()
