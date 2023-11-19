@@ -147,7 +147,7 @@ int main(int argc, char **argv)
             {
                std::cout << "Username: ";
                std::getline(std::cin, LDAPuser);
-               if (!(LDAPuser.length() > 8 || LDAPuser.empty()))
+               if (!(LDAPuser.length() > 8 || LDAPuser.empty()) && isStringValidInput(LDAPuser))
                   isValidUsername = true;
             }
             
@@ -186,7 +186,7 @@ int main(int argc, char **argv)
             {
                std::cout << "Receiver: ";
                std::getline(std::cin, receiver);
-               if (!(receiver.length() > 8 || receiver.empty()))
+               if (!(receiver.length() > 8 || receiver.empty()) && isStringValidInput(receiver))
                   isValidInput = true;
             }
             

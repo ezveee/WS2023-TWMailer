@@ -17,8 +17,8 @@ void handleLoginRequest(std::istringstream* stream, clientInformation* client)
    // separate user input into variables
    if (!(std::getline(*stream, user) && std::getline(*stream, password)))
    {
-       std::cerr << "getline() error" << std::endl;
-       return;
+      std::cerr << "getline() error" << std::endl;
+      return;
    }
    // decrypt userdata
    decrypt(42, user);
@@ -129,7 +129,7 @@ void handleLoginRequest(std::istringstream* stream, clientInformation* client)
 
    if (send(*current_socket, rawLdapUser, strlen(rawLdapUser) + 1, 0) == -1)
    {
-       perror("send answer failed");
+      perror("send answer failed");
    }
 }
 
@@ -150,6 +150,13 @@ void handleSendRequest(std::istringstream* stream, int* current_socket)
    }
    else
       std::cerr << "getline() error" << std::endl;
+
+   // check for special characters
+   if(!isStringValidInput(receiver))
+   {
+      std::cerr << "given Receiver was not valid" << std::endl;
+      return;
+   }
 
    // helperMethods.h
    // change current working directory to recipient's folder
@@ -194,7 +201,6 @@ void handleSendRequest(std::istringstream* stream, int* current_socket)
    {
       std::cerr << "Could not return back to spool folder." << std::endl;
    }
-   
 }
 
 void handleListRequest(std::istringstream* stream, int* current_socket)

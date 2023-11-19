@@ -11,6 +11,7 @@
 #include <string>
 #include <cstring>
 #include <netinet/in.h>
+#include <cctype>
 
 namespace fs = std::filesystem;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
@@ -29,6 +30,16 @@ struct blacklistItem
 };
 
 bool isThreadRunning = false;
+
+// checks if user input is a valid String (no special characters)
+bool isStringValidInput(std::string input)
+{
+    // check every char in input is alphanumeric
+    for (char c : input)
+        if (!std::isalnum(c))
+            return false; 
+   return true;
+}
 
 int getch()
 {
