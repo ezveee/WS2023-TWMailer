@@ -14,12 +14,6 @@
    PROGRAM USAGE:
    server: ./bin/server <port> <any directory name for mailspool -> will be created if not exists>
    client: ./bin/client 127.0.0.1 <same port as the one used for server>
-   
-   functions other than the ones from the ClientServerSample were outsourced into seperate header files
-   if a function from one of those is called, there'll be a comment in which one it is
-
-   again, pretty much the same as the ClientServerSample
-   biggest change is the ifs in the do while in clientCommunication() (line 198)
 */
 
 // DEFINES
@@ -124,20 +118,19 @@ int main(int argc, char **argv)
          break;
       }
 
-      // printf("Client connected from %s:%d...\n",
-      //        inet_ntoa(cliaddress.sin_addr),
-      //        ntohs(cliaddress.sin_port));
-
+      clientInformation* client = (clientInformation*)malloc(sizeof(clientInformation));
       pthread_t clientThread;
-      int* clientSocket = (int*)malloc(sizeof(int));
-      *clientSocket = new_socket;
+
+      client->clientSocket = (int*)malloc(sizeof(int));
+      *(client->clientSocket) = new_socket;
+      client->cliaddress = cliaddress;
 
       std::cout << "\n[Server]: ";
       printf("Client connected from %s:%d...\n",
              inet_ntoa(cliaddress.sin_addr),
              ntohs(cliaddress.sin_port));
 
-      if(pthread_create(&clientThread, NULL, &clientCommunication, (void*)clientSocket) != 0)
+      if(pthread_create(&clientThread, NULL, &clientCommunication, (void*)client) != 0)
       {
          perror("error creating thread");
       }
@@ -148,6 +141,12 @@ int main(int argc, char **argv)
       }
 
       new_socket = -1;
+
+      if(abortRequested)
+      {
+         free(client->clientSocket);
+         free(client);
+      }
    }
 
 
@@ -173,7 +172,8 @@ void* clientCommunication(void *data)
 {
    char buffer[BUF];
    int size;
-   int* current_socket = (int*)data;
+   clientInformation* client = (clientInformation*)data;
+   int* current_socket = client->clientSocket;
 
    // pthread_mutex_lock(&mutex);
    strcpy(buffer, "Welcome to twmailer!\r\nPlease enter your commands...\r\n(LOGIN, SEND, READ, LIST, DEL, QUIT)\r\n");
@@ -202,7 +202,6 @@ void* clientCommunication(void *data)
       if (size == 0)
       {
          std::cout << "\n[Thread " << pthread_self() << "]: Client closed remote socket." << std::endl;
-         // printf("Client closed remote socket\n"); // ignore error
          break;
       }
 
@@ -218,9 +217,6 @@ void* clientCommunication(void *data)
 
       buffer[size] = '\0';
 
-      // printf("Message received: %s\n", buffer);
-      // std::cout << "[Thread " << pthread_self() << "]:" << buffer << std::endl << std::endl;
-
       // turn buffer into std::string
       // create stringstream from said string
       // use getline to read first line of stream into action variable
@@ -233,7 +229,7 @@ void* clientCommunication(void *data)
       if (action == "LOGIN")
       {
          std::cout << "\n[Thread " << pthread_self() << "]: Login Request" << std::endl;
-         handleLoginRequest(&stream, current_socket);
+         handleLoginRequest(&stream, client);
       }
 
       else if (action == "SEND")
@@ -261,8 +257,6 @@ void* clientCommunication(void *data)
       }
          
    } while (strcasecmp(buffer, "QUIT") != 0 && !abortRequested);
-
-   //ldap_unbind_ext_s(ldapHandle, NULL, NULL);
 
    // closes/frees the descriptor if not already
    if (*current_socket != -1)
